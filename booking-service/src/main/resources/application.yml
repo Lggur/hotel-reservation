@@ -21,6 +21,23 @@ spring:
       enabled: true
       path: /h2-console
 
+security:
+  jwt:
+    secret: ${JWT_SECRET:hotel-reservation-dev-secret-key-please-change-2026}
+    ttl: PT1H
+  internal:
+    token: ${INTERNAL_TOKEN:hotel-reservation-internal-token}
+
+hotel-service:
+  base-url: ${HOTEL_SERVICE_URL:http://localhost:8081}
+  connect-timeout: 2s
+  read-timeout: 3s
+
+app:
+  admin:
+    username: ${ADMIN_USERNAME:admin}
+    password: ${ADMIN_PASSWORD:admin123}
+
 eureka:
   client:
     service-url:
