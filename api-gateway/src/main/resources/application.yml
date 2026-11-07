@@ -6,9 +6,20 @@ spring:
     name: api-gateway
   cloud:
     gateway:
-      discovery:
-        locator:
-          enabled: false
+      server:
+        webflux:
+          discovery:
+            locator:
+              enabled: false
+          routes:
+            - id: booking-service
+              uri: lb://booking-service
+              predicates:
+                - Path=/api/auth/**,/api/bookings/**
+            - id: hotel-service
+              uri: lb://hotel-service
+              predicates:
+                - Path=/api/hotels/**,/api/rooms/**
 
 eureka:
   client:

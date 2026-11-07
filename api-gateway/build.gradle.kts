@@ -5,6 +5,7 @@ plugins {
 }
 
 val springCloudVersion: String by project
+val wiremockVersion: String by project
 
 java {
     toolchain {
@@ -19,6 +20,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.wiremock:wiremock-standalone:$wiremockVersion")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

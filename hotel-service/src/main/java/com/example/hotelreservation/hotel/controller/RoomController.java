@@ -29,84 +29,98 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/rooms")
 @RequiredArgsConstructor
-@Tag(name = "Rooms", description = "Room management, availability and statistics")
+@Tag(
+  name = "Rooms",
+  description = "Room management, availability and statistics"
+)
 public class RoomController {
 
-    private final RoomService roomService;
+  private final RoomService roomService;
 
-    @PostMapping
-    @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Create a room")
-    public RoomResponse create(@Valid @RequestBody RoomRequest request) {
-        return roomService.create(request);
-    }
+  @PostMapping
+  @ResponseStatus(HttpStatus.CREATED)
+  @Operation(summary = "Create a room")
+  public RoomResponse create(@Valid @RequestBody RoomRequest request) {
+    return roomService.create(request);
+  }
 
-    @GetMapping
-    @Operation(summary = "List available rooms, optionally filtered by hotel and stay dates")
-    public List<RoomResponse> findAll(
-            @RequestParam(required = false) Long hotelId,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
-    ) {
-        return roomService.findAvailable(hotelId, startDate, endDate);
-    }
+  @GetMapping
+  @Operation(
+    summary = "List available rooms, optionally filtered by hotel and stay dates"
+  )
+  public List<RoomResponse> findAll(
+    @RequestParam(required = false) Long hotelId,
+    @RequestParam(required = false) @DateTimeFormat(
+      iso = DateTimeFormat.ISO.DATE
+    ) LocalDate startDate,
+    @RequestParam(required = false) @DateTimeFormat(
+      iso = DateTimeFormat.ISO.DATE
+    ) LocalDate endDate
+  ) {
+    return roomService.findAvailable(hotelId, startDate, endDate);
+  }
 
-    @GetMapping("/recommend")
-    @Operation(summary = "Recommend available rooms ordered by booking count")
-    public List<RoomResponse> recommend(
-            @RequestParam(required = false) Long hotelId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
-    ) {
-        return roomService.recommend(hotelId, startDate, endDate);
-    }
+  @GetMapping("/recommend")
+  @Operation(summary = "Recommend available rooms ordered by booking count")
+  public List<RoomResponse> recommend(
+    @RequestParam(required = false) Long hotelId,
+    @RequestParam @DateTimeFormat(
+      iso = DateTimeFormat.ISO.DATE
+    ) LocalDate startDate,
+    @RequestParam @DateTimeFormat(
+      iso = DateTimeFormat.ISO.DATE
+    ) LocalDate endDate
+  ) {
+    return roomService.recommend(hotelId, startDate, endDate);
+  }
 
-    @GetMapping("/statistics")
-    @Operation(summary = "Room occupancy statistics for a period")
-    public StatisticsResponse statistics(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @RequestParam(required = false) Long hotelId
-    ) {
-        return roomService.statistics(hotelId, from, to);
-    }
+  @GetMapping("/statistics")
+  @Operation(summary = "Room occupancy statistics for a period")
+  public StatisticsResponse statistics(
+    @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+    @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+    @RequestParam(required = false) Long hotelId
+  ) {
+    return roomService.statistics(hotelId, from, to);
+  }
 
-    @GetMapping("/{id}")
-    @Operation(summary = "Get a room by id")
-    public RoomResponse findById(@PathVariable Long id) {
-        return roomService.findById(id);
-    }
+  @GetMapping("/{id}")
+  @Operation(summary = "Get a room by id")
+  public RoomResponse findById(@PathVariable Long id) {
+    return roomService.findById(id);
+  }
 
-    @PutMapping("/{id}")
-    @Operation(summary = "Update a room")
-    public RoomResponse update(@PathVariable Long id, @Valid @RequestBody RoomRequest request) {
-        return roomService.update(id, request);
-    }
+  @PutMapping("/{id}")
+  @Operation(summary = "Update a room")
+  public RoomResponse update(
+    @PathVariable Long id,
+    @Valid @RequestBody RoomRequest request
+  ) {
+    return roomService.update(id, request);
+  }
 
-    @DeleteMapping("/{id}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "Delete a room")
-    public void delete(@PathVariable Long id) {
-        roomService.delete(id);
-    }
+  @DeleteMapping("/{id}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Operation(summary = "Delete a room")
+  public void delete(@PathVariable Long id) {
+    roomService.delete(id);
+  }
 
-    @PostMapping("/{id}/confirm-availability")
-    @Operation(summary = "Confirm room availability for a booking (internal)")
-    public AvailabilityResponse confirmAvailability(
-            @PathVariable Long id,
-            @Valid @RequestBody AvailabilityRequest request
-    ) {
-        return roomService.confirmAvailability(id, request);
-    }
+  @PostMapping("/{id}/confirm-availability")
+  @Operation(summary = "Confirm room availability for a booking (internal)")
+  public AvailabilityResponse confirmAvailability(
+    @PathVariable Long id,
+    @Valid @RequestBody AvailabilityRequest request
+  ) {
+    return roomService.confirmAvailability(id, request);
+  }
 
-    @PostMapping("/{id}/release")
-    @Operation(summary = "Release a previously confirmed room slot (internal)")
-    public AvailabilityResponse release(
-            @PathVariable Long id,
-            @Valid @RequestBody ReleaseRequest request
-    ) {
-        return roomService.release(id, request);
-    }
+  @PostMapping("/{id}/release")
+  @Operation(summary = "Release a previously confirmed room slot (internal)")
+  public AvailabilityResponse release(
+    @PathVariable Long id,
+    @Valid @RequestBody ReleaseRequest request
+  ) {
+    return roomService.release(id, request);
+  }
 }
