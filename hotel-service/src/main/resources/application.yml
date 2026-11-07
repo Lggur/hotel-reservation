@@ -21,6 +21,10 @@ spring:
       enabled: true
       path: /h2-console
 
+security:
+  jwt:
+    secret: ${JWT_SECRET:hotel-reservation-dev-secret-key-please-change-2026}
+
 eureka:
   client:
     service-url:
