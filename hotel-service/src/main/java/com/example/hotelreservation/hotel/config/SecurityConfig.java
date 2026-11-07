@@ -1,5 +1,6 @@
 package com.example.hotelreservation.hotel.config;
 
+import com.example.hotelreservation.hotel.security.InternalTokenFilter;
 import java.nio.charset.StandardCharsets;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -16,6 +17,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 
 @Configuration
 public class SecurityConfig {
@@ -23,7 +25,8 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
-            JwtAuthenticationConverter jwtAuthenticationConverter
+            JwtAuthenticationConverter jwtAuthenticationConverter,
+            @Value("${security.internal.token}") String internalToken
     ) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
@@ -40,12 +43,19 @@ public class SecurityConfig {
                                 "/h2-console/**",
                                 "/error"
                         ).permitAll()
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/rooms/*/confirm-availability",
+                                "/api/rooms/*/release"
+                        ).permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/rooms/statistics").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/hotels/**", "/api/rooms/**")
                         .hasAnyRole("USER", "ADMIN")
                         .requestMatchers("/api/hotels/**", "/api/rooms/**")
                         .hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(new InternalTokenFilter(internalToken), AuthorizationFilter.class)
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)));
 
         return http.build();

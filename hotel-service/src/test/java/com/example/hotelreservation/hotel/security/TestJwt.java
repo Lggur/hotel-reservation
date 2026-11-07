@@ -17,6 +17,8 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 public final class TestJwt {
 
     public static final String SECRET = "hotel-reservation-dev-secret-key-please-change-2026";
+    public static final String INTERNAL_TOKEN = "hotel-reservation-internal-token";
+    public static final String INTERNAL_TOKEN_HEADER = "X-Internal-Token";
 
     private static final JwtEncoder ENCODER = createEncoder();
 

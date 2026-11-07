@@ -1,13 +1,19 @@
 package com.example.hotelreservation.hotel.controller;
 
+import com.example.hotelreservation.hotel.dto.AvailabilityRequest;
+import com.example.hotelreservation.hotel.dto.AvailabilityResponse;
+import com.example.hotelreservation.hotel.dto.ReleaseRequest;
 import com.example.hotelreservation.hotel.dto.RoomRequest;
 import com.example.hotelreservation.hotel.dto.RoomResponse;
+import com.example.hotelreservation.hotel.dto.StatisticsResponse;
 import com.example.hotelreservation.hotel.service.RoomService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,7 +29,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/rooms")
 @RequiredArgsConstructor
-@Tag(name = "Rooms", description = "Room management")
+@Tag(name = "Rooms", description = "Room management, availability and statistics")
 public class RoomController {
 
     private final RoomService roomService;
@@ -36,9 +42,35 @@ public class RoomController {
     }
 
     @GetMapping
-    @Operation(summary = "List rooms, optionally filtered by hotel")
-    public List<RoomResponse> findAll(@RequestParam(required = false) Long hotelId) {
-        return roomService.findAll(hotelId);
+    @Operation(summary = "List available rooms, optionally filtered by hotel and stay dates")
+    public List<RoomResponse> findAll(
+            @RequestParam(required = false) Long hotelId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
+    ) {
+        return roomService.findAvailable(hotelId, startDate, endDate);
+    }
+
+    @GetMapping("/recommend")
+    @Operation(summary = "Recommend available rooms ordered by booking count")
+    public List<RoomResponse> recommend(
+            @RequestParam(required = false) Long hotelId,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
+    ) {
+        return roomService.recommend(hotelId, startDate, endDate);
+    }
+
+    @GetMapping("/statistics")
+    @Operation(summary = "Room occupancy statistics for a period")
+    public StatisticsResponse statistics(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Long hotelId
+    ) {
+        return roomService.statistics(hotelId, from, to);
     }
 
     @GetMapping("/{id}")
@@ -58,5 +90,23 @@ public class RoomController {
     @Operation(summary = "Delete a room")
     public void delete(@PathVariable Long id) {
         roomService.delete(id);
+    }
+
+    @PostMapping("/{id}/confirm-availability")
+    @Operation(summary = "Confirm room availability for a booking (internal)")
+    public AvailabilityResponse confirmAvailability(
+            @PathVariable Long id,
+            @Valid @RequestBody AvailabilityRequest request
+    ) {
+        return roomService.confirmAvailability(id, request);
+    }
+
+    @PostMapping("/{id}/release")
+    @Operation(summary = "Release a previously confirmed room slot (internal)")
+    public AvailabilityResponse release(
+            @PathVariable Long id,
+            @Valid @RequestBody ReleaseRequest request
+    ) {
+        return roomService.release(id, request);
     }
 }

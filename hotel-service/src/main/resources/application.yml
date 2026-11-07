@@ -24,6 +24,8 @@ spring:
 security:
   jwt:
     secret: ${JWT_SECRET:hotel-reservation-dev-secret-key-please-change-2026}
+  internal:
+    token: ${INTERNAL_TOKEN:hotel-reservation-internal-token}
 
 eureka:
   client:
