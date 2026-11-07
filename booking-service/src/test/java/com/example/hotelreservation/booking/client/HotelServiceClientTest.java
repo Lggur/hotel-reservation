@@ -3,6 +3,7 @@ package com.example.hotelreservation.booking.client;
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
+import static com.github.tomakehurst.wiremock.client.WireMock.getRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
 import static com.github.tomakehurst.wiremock.client.WireMock.ok;
 import static com.github.tomakehurst.wiremock.client.WireMock.okJson;
@@ -10,6 +11,7 @@ import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
@@ -18,6 +20,7 @@ import com.example.hotelreservation.booking.exception.HotelServiceUnavailableExc
 import com.example.hotelreservation.booking.exception.RoomUnavailableException;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration;
+import com.github.tomakehurst.wiremock.stubbing.Scenario;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
@@ -126,7 +129,91 @@ class HotelServiceClientTest {
                 () -> client(Duration.ofSeconds(2)).release(10L, 100L, START, END));
     }
 
+    @Test
+    void releaseMissingReservationIsTreatedAsSuccess() {
+        server.stubFor(post(urlEqualTo("/api/rooms/10/release"))
+                .willReturn(aResponse().withStatus(404)));
+
+        assertDoesNotThrow(() -> client(Duration.ofSeconds(2)).release(10L, 100L, START, END));
+        assertEquals(1, server.findAll(postRequestedFor(urlEqualTo("/api/rooms/10/release"))).size());
+    }
+
+    @Test
+    void confirmRetriesOnServerErrorThenSucceeds() {
+        server.stubFor(post(urlEqualTo("/api/rooms/10/confirm-availability"))
+                .inScenario("confirm-retry")
+                .whenScenarioStateIs(Scenario.STARTED)
+                .willSetStateTo("success")
+                .willReturn(aResponse().withStatus(500)));
+        server.stubFor(post(urlEqualTo("/api/rooms/10/confirm-availability"))
+                .inScenario("confirm-retry")
+                .whenScenarioStateIs("success")
+                .willReturn(ok()));
+
+        client(Duration.ofSeconds(2), 3, Duration.ofMillis(10))
+                .confirmAvailability(10L, 100L, START, END);
+
+        assertEquals(2, server.findAll(
+                postRequestedFor(urlEqualTo("/api/rooms/10/confirm-availability"))).size());
+    }
+
+    @Test
+    void recommendRetriesOnServerErrorThenSucceeds() {
+        server.stubFor(get(urlPathEqualTo("/api/rooms/recommend"))
+                .inScenario("recommend-retry")
+                .whenScenarioStateIs(Scenario.STARTED)
+                .willSetStateTo("success")
+                .willReturn(aResponse().withStatus(500)));
+        server.stubFor(get(urlPathEqualTo("/api/rooms/recommend"))
+                .inScenario("recommend-retry")
+                .whenScenarioStateIs("success")
+                .willReturn(okJson("""
+                        [{"id":11,"hotelId":7,"number":"101","available":true,"timesBooked":2}]
+                        """)));
+
+        List<HotelRoom> rooms = client(Duration.ofSeconds(2), 3, Duration.ofMillis(10))
+                .recommend(7L, START, END, "Bearer user-token");
+
+        assertEquals(1, rooms.size());
+        assertEquals(2, server.findAll(
+                getRequestedFor(urlPathEqualTo("/api/rooms/recommend"))).size());
+    }
+
+    @Test
+    void releaseRetriesOnServerErrorThenSucceeds() {
+        server.stubFor(post(urlEqualTo("/api/rooms/10/release"))
+                .inScenario("release-retry")
+                .whenScenarioStateIs(Scenario.STARTED)
+                .willSetStateTo("success")
+                .willReturn(aResponse().withStatus(500)));
+        server.stubFor(post(urlEqualTo("/api/rooms/10/release"))
+                .inScenario("release-retry")
+                .whenScenarioStateIs("success")
+                .willReturn(ok()));
+
+        client(Duration.ofSeconds(2), 3, Duration.ofMillis(10)).release(10L, 100L, START, END);
+
+        assertEquals(2, server.findAll(
+                postRequestedFor(urlEqualTo("/api/rooms/10/release"))).size());
+    }
+
+    @Test
+    void confirmConflictIsNotRetried() {
+        server.stubFor(post(urlEqualTo("/api/rooms/10/confirm-availability"))
+                .willReturn(aResponse().withStatus(409)));
+
+        assertThrows(RoomUnavailableException.class,
+                () -> client(Duration.ofSeconds(2)).confirmAvailability(10L, 100L, START, END));
+
+        assertEquals(1, server.findAll(
+                postRequestedFor(urlEqualTo("/api/rooms/10/confirm-availability"))).size());
+    }
+
     private HotelServiceClient client(Duration readTimeout) {
+        return client(readTimeout, 3, Duration.ofMillis(10));
+    }
+
+    private HotelServiceClient client(Duration readTimeout, int maxAttempts, Duration backoff) {
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Duration.ofSeconds(1));
         requestFactory.setReadTimeout(readTimeout);
@@ -136,6 +223,6 @@ class HotelServiceClientTest {
                 .requestFactory(requestFactory)
                 .build();
 
-        return new HotelServiceClient(restClient, "internal-token");
+        return new HotelServiceClient(restClient, "internal-token", maxAttempts, backoff);
     }
 }

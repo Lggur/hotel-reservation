@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest(properties = {
         "eureka.client.enabled=false",
+        "booking.recovery.enabled=false",
         "security.jwt.secret=" + TestJwt.SECRET,
         "spring.datasource.url=jdbc:h2:mem:booking-auth-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
 })

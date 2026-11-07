@@ -25,6 +25,8 @@ import com.example.hotelreservation.booking.exception.HotelServiceUnavailableExc
 import com.example.hotelreservation.booking.exception.RoomUnavailableException;
 import com.example.hotelreservation.booking.security.TestJwt;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -43,6 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest(properties = {
         "eureka.client.enabled=false",
+        "booking.recovery.enabled=false",
         "security.jwt.secret=" + TestJwt.SECRET,
         "spring.datasource.url=jdbc:h2:mem:booking-controller-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
 })
@@ -284,6 +287,31 @@ class BookingControllerTest {
                 .andExpect(jsonPath("$.status").value("CANCELLED"));
 
         verify(hotelServiceClient).release(10L, bookingId, START, END);
+    }
+
+    @Test
+    void internalRecoverRequiresTokenAndCancelsStalePendingBooking() throws Exception {
+        Booking pending = persistenceService.createPending(1L, 5L, 10L, START, END);
+        pending.setCreatedAt(Instant.now().minus(Duration.ofMinutes(15)));
+        bookingRepository.saveAndFlush(pending);
+
+        mockMvc.perform(post("/internal/bookings/recover"))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/internal/bookings/recover")
+                        .header(TestJwt.INTERNAL_TOKEN_HEADER, "wrong-token"))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/internal/bookings/recover")
+                        .header(TestJwt.INTERNAL_TOKEN_HEADER, TestJwt.INTERNAL_TOKEN))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.recovered").value(1));
+
+        verify(hotelServiceClient).release(10L, pending.getId(), START, END);
+
+        Booking recovered = bookingRepository.findById(pending.getId()).orElseThrow();
+        assertEquals(BookingStatus.CANCELLED, recovered.getStatus());
+        assertEquals("STALE_PENDING_RECOVERED", recovered.getFailureReason());
     }
 
     @Test

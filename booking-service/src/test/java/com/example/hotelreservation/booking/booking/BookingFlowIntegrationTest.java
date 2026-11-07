@@ -58,6 +58,8 @@ class BookingFlowIntegrationTest {
         registry.add("hotel-service.base-url", HOTEL_SERVICE::baseUrl);
         registry.add("eureka.client.enabled", () -> false);
         registry.add("security.jwt.secret", () -> TestJwt.SECRET);
+        registry.add("booking.recovery.enabled", () -> false);
+        registry.add("hotel-service.retry.backoff", () -> "10ms");
         registry.add("spring.datasource.url",
                 () -> "jdbc:h2:mem:booking-flow-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE");
     }

@@ -5,9 +5,11 @@ import com.example.hotelreservation.booking.booking.entity.BookingStatus;
 import com.example.hotelreservation.booking.booking.repository.BookingRepository;
 import com.example.hotelreservation.booking.exception.ConflictException;
 import com.example.hotelreservation.booking.exception.ResourceNotFoundException;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -63,6 +65,26 @@ public class BookingPersistenceService {
         }
         booking.setUpdatedAt(Instant.now());
         return booking;
+    }
+
+    @Transactional
+    public Optional<Booking> markCancelledIfPending(Long bookingId, String reason) {
+        Optional<Booking> found = bookingRepository.findById(bookingId);
+        if (found.isEmpty() || found.get().getStatus() != BookingStatus.PENDING) {
+            return Optional.empty();
+        }
+
+        Booking booking = found.get();
+        booking.setStatus(BookingStatus.CANCELLED);
+        booking.setFailureReason(reason);
+        booking.setUpdatedAt(Instant.now());
+        return Optional.of(booking);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Booking> findStalePending(Duration timeout) {
+        return bookingRepository.findByStatusAndCreatedAtBeforeOrderByIdAsc(
+                BookingStatus.PENDING, Instant.now().minus(timeout));
     }
 
     @Transactional(readOnly = true)

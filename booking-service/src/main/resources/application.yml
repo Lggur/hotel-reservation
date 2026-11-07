@@ -32,6 +32,15 @@ hotel-service:
   base-url: ${HOTEL_SERVICE_URL:http://localhost:8081}
   connect-timeout: 2s
   read-timeout: 3s
+  retry:
+    max-attempts: ${HOTEL_SERVICE_RETRY_MAX_ATTEMPTS:3}
+    backoff: ${HOTEL_SERVICE_RETRY_BACKOFF:200ms}
+
+booking:
+  recovery:
+    enabled: ${BOOKING_RECOVERY_ENABLED:true}
+    interval-ms: ${BOOKING_RECOVERY_INTERVAL_MS:60000}
+    pending-timeout: ${BOOKING_RECOVERY_PENDING_TIMEOUT:PT10M}
 
 app:
   admin:
