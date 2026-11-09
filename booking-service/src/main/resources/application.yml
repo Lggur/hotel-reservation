@@ -57,7 +57,7 @@ resilience4j:
 app:
   admin:
     username: ${ADMIN_USERNAME:admin}
-    password: ${ADMIN_PASSWORD:admin123}
+    password: ${ADMIN_PASSWORD:password}
   demo-data:
     enabled: ${DEMO_DATA_ENABLED:true}
 

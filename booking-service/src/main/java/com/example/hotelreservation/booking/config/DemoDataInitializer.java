@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DemoDataInitializer implements ApplicationRunner {
 
     private static final String DEMO_USERNAME = "demo";
-    private static final String DEMO_PASSWORD = "demo123";
+    private static final String DEMO_PASSWORD = "password";
 
     private final AppUserRepository userRepository;
     private final BookingRepository bookingRepository;

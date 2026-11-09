@@ -36,18 +36,18 @@ class AuthControllerTest {
 
     @Test
     void registerAndLoginReturnWorkingToken() throws Exception {
-        register("alice", "secret123")
+        register("user", "password")
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").isNumber())
-                .andExpect(jsonPath("$.username").value("alice"))
+                .andExpect(jsonPath("$.username").value("user"))
                 .andExpect(jsonPath("$.roles[0]").value("USER"));
 
-        String token = login("alice", "secret123")
+        String token = login("user", "password")
                 .andExpect(jsonPath("$.token").isString())
                 .andExpect(jsonPath("$.tokenType").value("Bearer"))
                 .andExpect(jsonPath("$.expiresIn").value(3600))
                 .andExpect(jsonPath("$.userId").isNumber())
-                .andExpect(jsonPath("$.username").value("alice"))
+                .andExpect(jsonPath("$.username").value("user"))
                 .andExpect(jsonPath("$.roles[0]").value("USER"))
                 .andReturn()
                 .getResponse()
@@ -57,7 +57,7 @@ class AuthControllerTest {
 
         mockMvc.perform(get("/api/auth/me").header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(accessToken)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.username").value("alice"))
+                .andExpect(jsonPath("$.username").value("user"))
                 .andExpect(jsonPath("$.roles[0]").value("USER"));
 
         mockMvc.perform(get("/api/bookings").header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(accessToken)))
@@ -67,8 +67,8 @@ class AuthControllerTest {
 
     @Test
     void registerDuplicateUsernameIsConflict() throws Exception {
-        register("bob", "secret123").andExpect(status().isCreated());
-        register("BoB", "secret123").andExpect(status().isConflict());
+        register("bob", "password").andExpect(status().isCreated());
+        register("BoB", "password").andExpect(status().isConflict());
     }
 
     @Test
@@ -80,19 +80,19 @@ class AuthControllerTest {
 
     @Test
     void loginWithWrongPasswordIsUnauthorized() throws Exception {
-        register("dave", "secret123").andExpect(status().isCreated());
+        register("dave", "password").andExpect(status().isCreated());
 
         login("dave", "wrong-password").andExpect(status().isUnauthorized());
     }
 
     @Test
     void loginWithUnknownUserIsUnauthorized() throws Exception {
-        login("nobody", "secret123").andExpect(status().isUnauthorized());
+        login("nobody", "password").andExpect(status().isUnauthorized());
     }
 
     @Test
     void bootstrapAdminCanLogin() throws Exception {
-        login("admin", "admin123")
+        login("admin", "password")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.roles[0]").value("ADMIN"));
     }

@@ -80,7 +80,7 @@ class GatewayRoutingTest {
         client.post()
                 .uri("/api/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue("{\"username\":\"alice\",\"password\":\"secret123\"}")
+                .bodyValue("{\"username\":\"user\",\"password\":\"password\"}")
                 .exchange()
                 .expectStatus()
                 .isOk()
@@ -89,7 +89,7 @@ class GatewayRoutingTest {
                 .isEqualTo("jwt-token");
 
         DOWNSTREAM.verify(postRequestedFor(urlEqualTo("/api/auth/login"))
-                .withRequestBody(matchingJsonPath("$.username", equalTo("alice"))));
+                .withRequestBody(matchingJsonPath("$.username", equalTo("user"))));
     }
 
     @Test

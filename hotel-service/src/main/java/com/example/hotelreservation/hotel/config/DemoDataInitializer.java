@@ -41,20 +41,20 @@ public class DemoDataInitializer implements ApplicationRunner {
             return;
         }
 
-        Hotel grandPlaza = hotelRepository.save(hotel("Grand Plaza", "Tverskaya 12, Moscow"));
-        Hotel seaside = hotelRepository.save(hotel("Seaside Resort", "Primorskaya 4, Sochi"));
+        Hotel hotel1 = hotelRepository.save(hotel("Hotel 1", "Tverskaya 12, Moscow"));
+        Hotel hotel2 = hotelRepository.save(hotel("Hotel 2", "Primorskaya 4, Sochi"));
 
-        Room grand101 = roomRepository.save(room(grandPlaza, "101", 1));
-        roomRepository.save(room(grandPlaza, "102", 4));
-        roomRepository.save(room(grandPlaza, "103", 9));
-        roomRepository.save(room(seaside, "201", 0));
-        roomRepository.save(room(seaside, "202", 6));
+        Room room101 = roomRepository.save(room(hotel1, "101", 1));
+        roomRepository.save(room(hotel1, "102", 4));
+        roomRepository.save(room(hotel1, "103", 9));
+        roomRepository.save(room(hotel2, "201", 0));
+        roomRepository.save(room(hotel2, "202", 6));
 
         LocalDate start = LocalDate.now().plusDays(1);
         LocalDate end = LocalDate.now().plusDays(4);
 
         RoomReservation reservation = new RoomReservation();
-        reservation.setRoom(grand101);
+        reservation.setRoom(room101);
         reservation.setBookingId(1L);
         reservation.setRequestId("demo-seed");
         reservation.setStartDate(start);
