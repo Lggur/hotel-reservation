@@ -16,8 +16,8 @@ import reactor.core.publisher.Mono;
 @Component
 public class InternalPathBlockingFilter implements GlobalFilter, Ordered {
 
-    private static final Pattern INTERNAL_PATH = Pattern.compile(
-            "^(/internal(/.*)?|/api/rooms/\\d+/(confirm-availability|release))$");
+    private static final Pattern INTERNAL_PATH =
+            Pattern.compile("^(/internal(/.*)?|/api/rooms/\\d+/(confirm-availability|release))$");
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
@@ -29,15 +29,17 @@ public class InternalPathBlockingFilter implements GlobalFilter, Ordered {
         response.setStatusCode(HttpStatus.NOT_FOUND);
         response.getHeaders().setContentType(MediaType.APPLICATION_PROBLEM_JSON);
 
-        byte[] body = """
+        byte[] body =
+                """
                 {"title":"Not found","status":404,"detail":"Resource not found"}
-                """.getBytes(StandardCharsets.UTF_8);
+                """
+                        .getBytes(StandardCharsets.UTF_8);
         DataBuffer buffer = response.bufferFactory().wrap(body);
         return response.writeWith(Mono.just(buffer));
     }
 
     @Override
     public int getOrder() {
-        return Ordered.HIGHEST_PRECEDENCE;
+        return Ordered.HIGHEST_PRECEDENCE + 1;
     }
 }

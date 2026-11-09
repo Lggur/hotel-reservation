@@ -8,6 +8,7 @@ val springCloudVersion: String by project
 val springdocVersion: String by project
 val mapstructVersion: String by project
 val wiremockVersion: String by project
+val resilience4jVersion: String by project
 
 java {
     toolchain {
@@ -24,6 +25,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.cloud:spring-cloud-starter-netflix-eureka-client")
     implementation("org.springframework.cloud:spring-cloud-starter-loadbalancer")
+    implementation("org.springframework.boot:spring-boot-starter-aop")
+    implementation("io.github.resilience4j:resilience4j-spring-boot3:$resilience4jVersion")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion")
     implementation("org.mapstruct:mapstruct:$mapstructVersion")
 

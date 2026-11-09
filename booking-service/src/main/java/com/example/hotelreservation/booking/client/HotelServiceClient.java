@@ -6,6 +6,7 @@ import com.example.hotelreservation.booking.exception.HotelServiceErrorException
 import com.example.hotelreservation.booking.exception.HotelServiceUnavailableException;
 import com.example.hotelreservation.booking.exception.RoomUnavailableException;
 import com.example.hotelreservation.booking.security.InternalTokenFilter;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.util.List;
@@ -32,8 +33,7 @@ public class HotelServiceClient {
             RestClient hotelRestClient,
             @Value("${security.internal.token}") String internalToken,
             @Value("${hotel-service.retry.max-attempts:3}") int maxAttempts,
-            @Value("${hotel-service.retry.backoff:200ms}") Duration backoff
-    ) {
+            @Value("${hotel-service.retry.backoff:200ms}") Duration backoff) {
         if (maxAttempts < 1) {
             throw new IllegalArgumentException("hotel-service.retry.max-attempts must be at least 1");
         }
@@ -43,10 +43,12 @@ public class HotelServiceClient {
         this.backoff = backoff;
     }
 
+    @CircuitBreaker(name = "hotelService", fallbackMethod = "recommendFallback")
     public List<HotelRoom> recommend(Long hotelId, LocalDate startDate, LocalDate endDate, String authorization) {
         return withRetry(() -> requestRecommend(hotelId, startDate, endDate, authorization));
     }
 
+    @CircuitBreaker(name = "hotelService", fallbackMethod = "confirmFallback")
     public void confirmAvailability(Long roomId, Long bookingId, LocalDate startDate, LocalDate endDate) {
         withRetry(() -> {
             requestConfirm(roomId, bookingId, startDate, endDate);
@@ -54,6 +56,7 @@ public class HotelServiceClient {
         });
     }
 
+    @CircuitBreaker(name = "hotelService", fallbackMethod = "releaseFallback")
     public void release(Long roomId, Long bookingId, LocalDate startDate, LocalDate endDate) {
         withRetry(() -> {
             requestRelease(roomId, bookingId, startDate, endDate);
@@ -61,16 +64,42 @@ public class HotelServiceClient {
         });
     }
 
+    private List<HotelRoom> recommendFallback(
+            Long hotelId, LocalDate startDate, LocalDate endDate, String authorization, Throwable throwable) {
+        throw unavailable(throwable);
+    }
+
+    private void confirmFallback(
+            Long roomId, Long bookingId, LocalDate startDate, LocalDate endDate, Throwable throwable) {
+        if (throwable instanceof RoomUnavailableException roomUnavailable) {
+            throw roomUnavailable;
+        }
+        if (throwable instanceof HotelServiceErrorException hotelError) {
+            throw hotelError;
+        }
+        throw unavailable(throwable);
+    }
+
+    private void releaseFallback(
+            Long roomId, Long bookingId, LocalDate startDate, LocalDate endDate, Throwable throwable) {
+        if (throwable instanceof HotelServiceErrorException hotelError) {
+            throw hotelError;
+        }
+        throw unavailable(throwable);
+    }
+
+    private HotelServiceUnavailableException unavailable(Throwable throwable) {
+        return new HotelServiceUnavailableException("Hotel service is unavailable or the circuit is open", throwable);
+    }
+
     private List<HotelRoom> requestRecommend(
-            Long hotelId,
-            LocalDate startDate,
-            LocalDate endDate,
-            String authorization
-    ) {
+            Long hotelId, LocalDate startDate, LocalDate endDate, String authorization) {
         try {
-            List<HotelRoom> rooms = hotelRestClient.get()
+            List<HotelRoom> rooms = hotelRestClient
+                    .get()
                     .uri(uriBuilder -> {
-                        uriBuilder.path("/api/rooms/recommend")
+                        uriBuilder
+                                .path("/api/rooms/recommend")
                                 .queryParam("startDate", startDate)
                                 .queryParam("endDate", endDate);
                         if (hotelId != null) {
@@ -80,8 +109,7 @@ public class HotelServiceClient {
                     })
                     .header(HttpHeaders.AUTHORIZATION, authorization)
                     .retrieve()
-                    .body(new ParameterizedTypeReference<List<HotelRoom>>() {
-                    });
+                    .body(new ParameterizedTypeReference<List<HotelRoom>>() {});
             return rooms == null ? List.of() : rooms;
         } catch (ResourceAccessException exception) {
             throw new HotelServiceUnavailableException("Hotel service is unavailable", exception);
@@ -92,7 +120,8 @@ public class HotelServiceClient {
 
     private void requestConfirm(Long roomId, Long bookingId, LocalDate startDate, LocalDate endDate) {
         try {
-            hotelRestClient.post()
+            hotelRestClient
+                    .post()
                     .uri("/api/rooms/{roomId}/confirm-availability", roomId)
                     .header(InternalTokenFilter.HEADER, internalToken)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -104,8 +133,7 @@ public class HotelServiceClient {
         } catch (RestClientResponseException exception) {
             int status = exception.getStatusCode().value();
             if (status == 409 || status == 404) {
-                throw new RoomUnavailableException(
-                        "Room " + roomId + " is not available for the requested dates");
+                throw new RoomUnavailableException("Room " + roomId + " is not available for the requested dates");
             }
             throw translate(exception);
         }
@@ -113,7 +141,8 @@ public class HotelServiceClient {
 
     private void requestRelease(Long roomId, Long bookingId, LocalDate startDate, LocalDate endDate) {
         try {
-            hotelRestClient.post()
+            hotelRestClient
+                    .post()
                     .uri("/api/rooms/{roomId}/release", roomId)
                     .header(InternalTokenFilter.HEADER, internalToken)
                     .contentType(MediaType.APPLICATION_JSON)
@@ -130,7 +159,8 @@ public class HotelServiceClient {
                 throw new HotelServiceUnavailableException("Hotel service failed to release the room", exception);
             }
             throw new HotelServiceErrorException(
-                    "Hotel service rejected the release with status " + exception.getStatusCode().value(),
+                    "Hotel service rejected the release with status "
+                            + exception.getStatusCode().value(),
                     exception);
         }
     }
@@ -158,17 +188,12 @@ public class HotelServiceClient {
             Thread.sleep(backoff.toMillis());
         } catch (InterruptedException exception) {
             Thread.currentThread().interrupt();
-            throw new HotelServiceUnavailableException(
-                    "Interrupted while retrying the Hotel service call", exception);
+            throw new HotelServiceUnavailableException("Interrupted while retrying the Hotel service call", exception);
         }
     }
 
     private RoomSlotRequest slotRequest(Long bookingId, LocalDate startDate, LocalDate endDate) {
-        return new RoomSlotRequest(
-                bookingId,
-                UUID.randomUUID().toString(),
-                startDate.toString(),
-                endDate.toString());
+        return new RoomSlotRequest(bookingId, UUID.randomUUID().toString(), startDate.toString(), endDate.toString());
     }
 
     private RuntimeException translate(RestClientResponseException exception) {

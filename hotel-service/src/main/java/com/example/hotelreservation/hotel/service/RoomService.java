@@ -24,8 +24,11 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +38,8 @@ public class RoomService {
 
     private static final ReservationStatus ACTIVE = ReservationStatus.ACTIVE;
     private static final ReservationStatus RELEASED = ReservationStatus.RELEASED;
+    private static final Set<String> SORT_FIELDS = Set.of("id", "number", "hotelId", "timesBooked");
+    private static final String DEFAULT_SORT_FIELD = "id";
 
     private final RoomRepository roomRepository;
     private final RoomReservationRepository reservationRepository;
@@ -42,6 +47,7 @@ public class RoomService {
     private final RoomMapper roomMapper;
 
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public RoomResponse create(RoomRequest request) {
         Hotel hotel = requireHotel(request.hotelId());
         ensureNumberAvailable(request.hotelId(), request.number(), null);
@@ -54,32 +60,44 @@ public class RoomService {
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public List<RoomResponse> findAvailable(Long hotelId, LocalDate startDate, LocalDate endDate) {
+        return findAvailable(hotelId, startDate, endDate, null, null);
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
+    public List<RoomResponse> findAvailable(
+            Long hotelId, LocalDate startDate, LocalDate endDate, String sortField, String sortDirection) {
+        Sort sort = sort(sortField, sortDirection);
         List<Room> rooms;
         if (startDate == null && endDate == null) {
             rooms = hotelId == null
-                    ? roomRepository.findAllByAvailableTrueOrderByIdAsc()
-                    : roomRepository.findAllByAvailableTrueAndHotelIdOrderByIdAsc(hotelId);
+                    ? roomRepository.findAllByAvailableTrue(sort)
+                    : roomRepository.findAllByAvailableTrueAndHotelId(hotelId, sort);
         } else {
             validateRange(startDate, endDate);
-            rooms = roomRepository.findAvailableForDates(hotelId, startDate, endDate, ACTIVE);
+            rooms = roomRepository.findAvailableForDates(hotelId, startDate, endDate, ACTIVE, sort);
         }
 
         return toResponses(rooms);
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public List<RoomResponse> recommend(Long hotelId, LocalDate startDate, LocalDate endDate) {
         validateRange(startDate, endDate);
         return toResponses(roomRepository.findRecommendedForDates(hotelId, startDate, endDate, ACTIVE));
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public RoomResponse findById(Long id) {
         return roomMapper.toResponse(requireRoom(id));
     }
 
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public RoomResponse update(Long id, RoomRequest request) {
         Room room = requireRoom(id);
         Hotel hotel = requireHotel(request.hotelId());
@@ -95,6 +113,7 @@ public class RoomService {
     }
 
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public void delete(Long id) {
         roomRepository.delete(requireRoom(id));
     }
@@ -169,6 +188,7 @@ public class RoomService {
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('ADMIN')")
     public StatisticsResponse statistics(Long hotelId, LocalDate from, LocalDate to) {
         validateRange(from, to);
 
@@ -177,12 +197,12 @@ public class RoomService {
                 : roomRepository.findAllByHotelIdOrderByIdAsc(hotelId);
         List<Long> roomIds = rooms.stream().map(Room::getId).toList();
 
-        List<RoomReservation> reservations = roomIds.isEmpty()
-                ? List.of()
-                : reservationRepository.findInRange(roomIds, from, to, ACTIVE);
+        List<RoomReservation> reservations =
+                roomIds.isEmpty() ? List.of() : reservationRepository.findInRange(roomIds, from, to, ACTIVE);
 
         Map<Long, List<RoomReservation>> byRoom = reservations.stream()
-                .collect(Collectors.groupingBy(reservation -> reservation.getRoom().getId()));
+                .collect(Collectors.groupingBy(
+                        reservation -> reservation.getRoom().getId()));
 
         long totalNights = ChronoUnit.DAYS.between(from, to);
         List<RoomStatisticsResponse> roomStatistics = rooms.stream()
@@ -194,13 +214,9 @@ public class RoomService {
     }
 
     private AvailabilityResponse idempotentConfirm(
-            Room room,
-            RoomReservation reservation,
-            AvailabilityRequest request
-    ) {
+            Room room, RoomReservation reservation, AvailabilityRequest request) {
         if (!reservation.getRoom().getId().equals(room.getId())) {
-            throw new ConflictException(
-                    "Booking " + request.bookingId() + " is already associated with another room");
+            throw new ConflictException("Booking " + request.bookingId() + " is already associated with another room");
         }
         if (reservation.getStatus() == RELEASED) {
             throw new ConflictException("Booking " + request.bookingId() + " was already released");
@@ -214,18 +230,11 @@ public class RoomService {
     }
 
     private RoomStatisticsResponse toStatistics(
-            Room room,
-            List<RoomReservation> reservations,
-            LocalDate from,
-            LocalDate to,
-            long totalNights
-    ) {
+            Room room, List<RoomReservation> reservations, LocalDate from, LocalDate to, long totalNights) {
         long occupiedNights = reservations.stream()
                 .mapToLong(reservation -> nightsInRange(reservation, from, to))
                 .sum();
-        double occupancyRate = totalNights == 0
-                ? 0.0
-                : round4((double) occupiedNights / totalNights);
+        double occupancyRate = totalNights == 0 ? 0.0 : round4((double) occupiedNights / totalNights);
 
         return new RoomStatisticsResponse(
                 room.getId(),
@@ -234,8 +243,7 @@ public class RoomService {
                 room.getTimesBooked(),
                 reservations.size(),
                 occupiedNights,
-                occupancyRate
-        );
+                occupancyRate);
     }
 
     private long nightsInRange(RoomReservation reservation, LocalDate from, LocalDate to) {
@@ -249,7 +257,8 @@ public class RoomService {
     }
 
     private Room lockRoom(Long roomId) {
-        return roomRepository.findByIdForUpdate(roomId)
+        return roomRepository
+                .findByIdForUpdate(roomId)
                 .orElseThrow(() -> new ResourceNotFoundException("Room " + roomId + " not found"));
     }
 
@@ -262,19 +271,38 @@ public class RoomService {
         }
     }
 
+    private Sort sort(String sortField, String sortDirection) {
+        String field = sortField == null || sortField.isBlank() ? DEFAULT_SORT_FIELD : sortField;
+        if (!SORT_FIELDS.contains(field)) {
+            throw new BadRequestException(
+                    "sort must be one of " + SORT_FIELDS.stream().sorted().toList());
+        }
+
+        Sort.Direction direction;
+        if (sortDirection == null || sortDirection.isBlank()) {
+            direction = Sort.Direction.ASC;
+        } else {
+            direction = Sort.Direction.fromOptionalString(sortDirection)
+                    .orElseThrow(() -> new BadRequestException("direction must be asc or desc"));
+        }
+
+        String property = "hotelId".equals(field) ? "hotel.id" : field;
+        return Sort.by(direction, property);
+    }
+
     private List<RoomResponse> toResponses(List<Room> rooms) {
-        return rooms.stream()
-                .map(roomMapper::toResponse)
-                .toList();
+        return rooms.stream().map(roomMapper::toResponse).toList();
     }
 
     private Room requireRoom(Long id) {
-        return roomRepository.findById(id)
+        return roomRepository
+                .findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Room " + id + " not found"));
     }
 
     private Hotel requireHotel(Long id) {
-        return hotelRepository.findById(id)
+        return hotelRepository
+                .findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Hotel " + id + " not found"));
     }
 

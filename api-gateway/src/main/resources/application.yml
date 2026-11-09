@@ -28,6 +28,10 @@ eureka:
   instance:
     prefer-ip-address: true
 
+security:
+  jwt:
+    secret: ${JWT_SECRET:hotel-reservation-dev-secret-key-please-change-2026}
+
 management:
   endpoints:
     web:

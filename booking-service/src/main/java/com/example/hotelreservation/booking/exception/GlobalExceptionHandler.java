@@ -74,7 +74,9 @@ public class GlobalExceptionHandler {
         problem.setTitle("Validation failed");
 
         Map<String, String> errors = new LinkedHashMap<>();
-        exception.getBindingResult().getFieldErrors()
+        exception
+                .getBindingResult()
+                .getFieldErrors()
                 .forEach(error -> errors.putIfAbsent(error.getField(), error.getDefaultMessage()));
         problem.setProperty("errors", errors);
         return problem;
@@ -86,16 +88,17 @@ public class GlobalExceptionHandler {
         problem.setTitle("Validation failed");
 
         Map<String, String> errors = new LinkedHashMap<>();
-        exception.getConstraintViolations()
+        exception
+                .getConstraintViolations()
                 .forEach(violation -> errors.put(violation.getPropertyPath().toString(), violation.getMessage()));
         problem.setProperty("errors", errors);
         return problem;
     }
 
     @ExceptionHandler({
-            HttpMessageNotReadableException.class,
-            MethodArgumentTypeMismatchException.class,
-            MissingServletRequestParameterException.class
+        HttpMessageNotReadableException.class,
+        MethodArgumentTypeMismatchException.class,
+        MissingServletRequestParameterException.class
     })
     public ProblemDetail handleMalformedRequest(Exception exception) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Malformed request");

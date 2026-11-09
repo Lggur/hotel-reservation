@@ -10,42 +10,36 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface RoomReservationRepository
-  extends JpaRepository<RoomReservation, Long>
-{
-  Optional<RoomReservation> findByBookingId(Long bookingId);
+public interface RoomReservationRepository extends JpaRepository<RoomReservation, Long> {
+    Optional<RoomReservation> findByBookingId(Long bookingId);
 
-  @Query(
-    """
+    @Query(
+            """
     select count(r)
     from RoomReservation r
     where r.room.id = :roomId
       and r.status = :status
       and r.startDate < :endDate
       and r.endDate > :startDate
-    """
-  )
-  long countOverlapping(
-    @Param("roomId") Long roomId,
-    @Param("startDate") LocalDate startDate,
-    @Param("endDate") LocalDate endDate,
-    @Param("status") ReservationStatus status
-  );
+    """)
+    long countOverlapping(
+            @Param("roomId") Long roomId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("status") ReservationStatus status);
 
-  @Query(
-    """
+    @Query(
+            """
     select r
     from RoomReservation r
     where r.room.id in :roomIds
       and r.status = :status
       and r.startDate < :to
       and r.endDate > :from
-    """
-  )
-  List<RoomReservation> findInRange(
-    @Param("roomIds") Collection<Long> roomIds,
-    @Param("from") LocalDate from,
-    @Param("to") LocalDate to,
-    @Param("status") ReservationStatus status
-  );
+    """)
+    List<RoomReservation> findInRange(
+            @Param("roomIds") Collection<Long> roomIds,
+            @Param("from") LocalDate from,
+            @Param("to") LocalDate to,
+            @Param("status") ReservationStatus status);
 }

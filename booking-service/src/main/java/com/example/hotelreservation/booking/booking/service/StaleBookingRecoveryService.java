@@ -22,8 +22,7 @@ public class StaleBookingRecoveryService {
     public StaleBookingRecoveryService(
             BookingPersistenceService persistenceService,
             HotelServiceClient hotelServiceClient,
-            @Value("${booking.recovery.pending-timeout:PT10M}") Duration pendingTimeout
-    ) {
+            @Value("${booking.recovery.pending-timeout:PT10M}") Duration pendingTimeout) {
         this.persistenceService = persistenceService;
         this.hotelServiceClient = hotelServiceClient;
         this.pendingTimeout = pendingTimeout;
@@ -45,21 +44,26 @@ public class StaleBookingRecoveryService {
             hotelServiceClient.release(
                     booking.getRoomId(), booking.getId(), booking.getStartDate(), booking.getEndDate());
         } catch (RuntimeException exception) {
-            log.warn("Could not release room {} for stale pending booking {}; leaving it PENDING",
-                    booking.getRoomId(), booking.getId(), exception);
+            log.warn(
+                    "Could not release room {} for stale pending booking {}; leaving it PENDING",
+                    booking.getRoomId(),
+                    booking.getId(),
+                    exception);
             return false;
         }
 
         try {
-            Optional<Booking> cancelled =
-                    persistenceService.markCancelledIfPending(booking.getId(), REASON);
+            Optional<Booking> cancelled = persistenceService.markCancelledIfPending(booking.getId(), REASON);
             if (cancelled.isEmpty()) {
                 log.info("Booking {} is no longer PENDING after its room was released", booking.getId());
                 return false;
             }
         } catch (RuntimeException exception) {
-            log.error("Failed to cancel stale pending booking {} after releasing room {}",
-                    booking.getId(), booking.getRoomId(), exception);
+            log.error(
+                    "Failed to cancel stale pending booking {} after releasing room {}",
+                    booking.getId(),
+                    booking.getRoomId(),
+                    exception);
             return false;
         }
 

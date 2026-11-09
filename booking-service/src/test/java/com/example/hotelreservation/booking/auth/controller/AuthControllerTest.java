@@ -17,12 +17,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest(properties = {
-        "eureka.client.enabled=false",
-        "booking.recovery.enabled=false",
-        "security.jwt.secret=" + TestJwt.SECRET,
-        "spring.datasource.url=jdbc:h2:mem:booking-auth-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
-})
+@SpringBootTest(
+        properties = {
+            "eureka.client.enabled=false",
+            "booking.recovery.enabled=false",
+            "security.jwt.secret=" + TestJwt.SECRET,
+            "spring.datasource.url=jdbc:h2:mem:booking-auth-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
+        })
 @AutoConfigureMockMvc
 @Transactional
 class AuthControllerTest {
@@ -54,16 +55,14 @@ class AuthControllerTest {
 
         String accessToken = objectMapper.readTree(token).get("token").asText();
 
-        mockMvc.perform(get("/api/auth/me")
-                        .header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(accessToken)))
+        mockMvc.perform(get("/api/auth/me").header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(accessToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username").value("alice"))
                 .andExpect(jsonPath("$.roles[0]").value("USER"));
 
-        mockMvc.perform(get("/api/bookings")
-                        .header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(accessToken)))
+        mockMvc.perform(get("/api/bookings").header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(accessToken)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.totalElements").value(0));
     }
 
     @Test
@@ -83,14 +82,12 @@ class AuthControllerTest {
     void loginWithWrongPasswordIsUnauthorized() throws Exception {
         register("dave", "secret123").andExpect(status().isCreated());
 
-        login("dave", "wrong-password")
-                .andExpect(status().isUnauthorized());
+        login("dave", "wrong-password").andExpect(status().isUnauthorized());
     }
 
     @Test
     void loginWithUnknownUserIsUnauthorized() throws Exception {
-        login("nobody", "secret123")
-                .andExpect(status().isUnauthorized());
+        login("nobody", "secret123").andExpect(status().isUnauthorized());
     }
 
     @Test
@@ -102,8 +99,7 @@ class AuthControllerTest {
 
     @Test
     void protectedEndpointWithoutTokenIsUnauthorized() throws Exception {
-        mockMvc.perform(get("/api/bookings"))
-                .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/bookings")).andExpect(status().isUnauthorized());
     }
 
     private ResultActions register(String username, String password) throws Exception {
@@ -111,7 +107,8 @@ class AuthControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {"username":"%s","password":"%s"}
-                        """.formatted(username, password)));
+                        """
+                        .formatted(username, password)));
     }
 
     private ResultActions login(String username, String password) throws Exception {
@@ -119,6 +116,7 @@ class AuthControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("""
                         {"username":"%s","password":"%s"}
-                        """.formatted(username, password)));
+                        """
+                        .formatted(username, password)));
     }
 }

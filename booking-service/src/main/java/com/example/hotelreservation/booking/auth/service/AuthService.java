@@ -43,7 +43,8 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
-        AppUser user = userRepository.findByUsernameIgnoreCase(request.username().trim())
+        AppUser user = userRepository
+                .findByUsernameIgnoreCase(request.username().trim())
                 .orElseThrow(() -> new UnauthorizedException("Invalid username or password"));
 
         if (!passwordEncoder.matches(request.password(), user.getPasswordHash())) {
@@ -56,11 +57,11 @@ public class AuthService {
                 jwtService.expiresInSeconds(),
                 user.getId(),
                 user.getUsername(),
-                List.of(user.getRole().name())
-        );
+                List.of(user.getRole().name()));
     }
 
     private UserResponse toResponse(AppUser user) {
-        return new UserResponse(user.getId(), user.getUsername(), List.of(user.getRole().name()));
+        return new UserResponse(
+                user.getId(), user.getUsername(), List.of(user.getRole().name()));
     }
 }

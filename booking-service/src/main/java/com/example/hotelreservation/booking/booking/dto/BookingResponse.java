@@ -14,6 +14,4 @@ public record BookingResponse(
         BookingStatus status,
         String failureReason,
         Instant createdAt,
-        Instant updatedAt
-) {
-}
+        Instant updatedAt) {}

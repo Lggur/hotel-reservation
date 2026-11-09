@@ -9,19 +9,19 @@ import org.mapstruct.MappingTarget;
 
 @Mapper(componentModel = "spring")
 public interface RoomMapper {
-  @Mapping(target = "id", ignore = true)
-  @Mapping(target = "hotel", ignore = true)
-  @Mapping(target = "available", ignore = true)
-  @Mapping(target = "timesBooked", ignore = true)
-  Room toEntity(RoomRequest request);
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "hotel", ignore = true)
+    @Mapping(target = "available", ignore = true)
+    @Mapping(target = "timesBooked", ignore = true)
+    Room toEntity(RoomRequest request);
 
-  @Mapping(target = "hotelId", source = "hotel.id")
-  @Mapping(target = "hotelName", source = "hotel.name")
-  RoomResponse toResponse(Room room);
+    @Mapping(target = "hotelId", source = "hotel.id")
+    @Mapping(target = "hotelName", source = "hotel.name")
+    RoomResponse toResponse(Room room);
 
-  @Mapping(target = "id", ignore = true)
-  @Mapping(target = "hotel", ignore = true)
-  @Mapping(target = "available", ignore = true)
-  @Mapping(target = "timesBooked", ignore = true)
-  void update(RoomRequest request, @MappingTarget Room room);
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "hotel", ignore = true)
+    @Mapping(target = "available", ignore = true)
+    @Mapping(target = "timesBooked", ignore = true)
+    void update(RoomRequest request, @MappingTarget Room room);
 }

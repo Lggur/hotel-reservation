@@ -43,12 +43,13 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest(properties = {
-        "eureka.client.enabled=false",
-        "booking.recovery.enabled=false",
-        "security.jwt.secret=" + TestJwt.SECRET,
-        "spring.datasource.url=jdbc:h2:mem:booking-controller-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
-})
+@SpringBootTest(
+        properties = {
+            "eureka.client.enabled=false",
+            "booking.recovery.enabled=false",
+            "security.jwt.secret=" + TestJwt.SECRET,
+            "spring.datasource.url=jdbc:h2:mem:booking-controller-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
+        })
 @AutoConfigureMockMvc
 @Transactional
 class BookingControllerTest {
@@ -106,11 +107,9 @@ class BookingControllerTest {
     @Test
     void createWithoutAvailableRoomsIsConflict() throws Exception {
         String token = TestJwt.user(1);
-        when(hotelServiceClient.recommend(eq(7L), eq(START), eq(END), any()))
-                .thenReturn(List.of());
+        when(hotelServiceClient.recommend(eq(7L), eq(START), eq(END), any())).thenReturn(List.of());
 
-        createBooking(token, 7L, null, START, END)
-                .andExpect(status().isConflict());
+        createBooking(token, 7L, null, START, END).andExpect(status().isConflict());
 
         assertEquals(0, bookingRepository.count());
         verify(hotelServiceClient, never()).confirmAvailability(anyLong(), anyLong(), any(), any());
@@ -119,10 +118,10 @@ class BookingControllerTest {
     @Test
     void createWhenHotelRejectsDatesIsConflictAndCancels() throws Exception {
         doThrow(new RoomUnavailableException("Room 10 is not available for the requested dates"))
-                .when(hotelServiceClient).confirmAvailability(anyLong(), anyLong(), any(), any());
+                .when(hotelServiceClient)
+                .confirmAvailability(anyLong(), anyLong(), any(), any());
 
-        createBooking(TestJwt.user(1), 5L, 10L, START, END)
-                .andExpect(status().isConflict());
+        createBooking(TestJwt.user(1), 5L, 10L, START, END).andExpect(status().isConflict());
 
         Booking booking = onlyBooking();
         assertEquals(BookingStatus.CANCELLED, booking.getStatus());
@@ -132,10 +131,10 @@ class BookingControllerTest {
     @Test
     void createWhenHotelIsUnavailableIsServiceUnavailableAndCancels() throws Exception {
         doThrow(new HotelServiceUnavailableException("Hotel service is unavailable"))
-                .when(hotelServiceClient).confirmAvailability(anyLong(), anyLong(), any(), any());
+                .when(hotelServiceClient)
+                .confirmAvailability(anyLong(), anyLong(), any(), any());
 
-        createBooking(TestJwt.user(1), 5L, 10L, START, END)
-                .andExpect(status().isServiceUnavailable());
+        createBooking(TestJwt.user(1), 5L, 10L, START, END).andExpect(status().isServiceUnavailable());
 
         Booking booking = onlyBooking();
         assertEquals(BookingStatus.CANCELLED, booking.getStatus());
@@ -172,16 +171,80 @@ class BookingControllerTest {
         createConfirmedBooking(TestJwt.user(1), 10L);
         createConfirmedBooking(TestJwt.user(2), 11L);
 
-        mockMvc.perform(get("/api/bookings")
-                        .header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(TestJwt.user(1))))
+        mockMvc.perform(get("/api/bookings").header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(TestJwt.user(1))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].userId").value(1));
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].userId").value(1));
+
+        mockMvc.perform(get("/api/bookings").header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(TestJwt.admin())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.content.length()").value(2));
+    }
+
+    @Test
+    void listIsPaginated() throws Exception {
+        createConfirmedBooking(TestJwt.user(1), 10L);
+        createConfirmedBooking(TestJwt.user(1), 11L);
+        createConfirmedBooking(TestJwt.user(1), 12L);
 
         mockMvc.perform(get("/api/bookings")
-                        .header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(TestJwt.admin())))
+                        .param("page", "0")
+                        .param("size", "2")
+                        .header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(TestJwt.user(1))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2));
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(2))
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.content.length()").value(2));
+
+        mockMvc.perform(get("/api/bookings")
+                        .param("page", "1")
+                        .param("size", "2")
+                        .header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(TestJwt.user(1))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1));
+    }
+
+    @Test
+    void listWithInvalidPageSizeIsBadRequest() throws Exception {
+        mockMvc.perform(get("/api/bookings")
+                        .param("size", "0")
+                        .header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(TestJwt.user(1))))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void createWithIdempotencyKeyReturnsSameBooking() throws Exception {
+        String token = TestJwt.user(1);
+        String key = "request-123";
+
+        MvcResult first = mockMvc.perform(post("/api/bookings")
+                        .header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(token))
+                        .header("Idempotency-Key", key)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(bookingJson(5L, 10L, START, END)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        long firstId = objectMapper
+                .readTree(first.getResponse().getContentAsString())
+                .get("id")
+                .asLong();
+
+        mockMvc.perform(post("/api/bookings")
+                        .header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(token))
+                        .header("Idempotency-Key", key)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(bookingJson(5L, 10L, START, END)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(firstId))
+                .andExpect(jsonPath("$.status").value("CONFIRMED"));
+
+        assertEquals(1, bookingRepository.count());
+        verify(hotelServiceClient, times(1)).confirmAvailability(eq(10L), anyLong(), eq(START), eq(END));
     }
 
     @Test
@@ -238,7 +301,8 @@ class BookingControllerTest {
     void cancelKeepsBookingConfirmedWhenReleaseFails() throws Exception {
         long bookingId = createConfirmedBooking(TestJwt.user(1), 10L);
         doThrow(new HotelServiceUnavailableException("Hotel service is unavailable"))
-                .when(hotelServiceClient).release(anyLong(), anyLong(), any(), any());
+                .when(hotelServiceClient)
+                .release(anyLong(), anyLong(), any(), any());
 
         mockMvc.perform(post("/api/bookings/{id}/cancel", bookingId)
                         .header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(TestJwt.user(1))))
@@ -264,11 +328,9 @@ class BookingControllerTest {
     void internalEndpointsRequireInternalToken() throws Exception {
         long bookingId = createConfirmedBooking(TestJwt.user(1), 10L);
 
-        mockMvc.perform(get("/internal/bookings/{id}", bookingId))
-                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/internal/bookings/{id}", bookingId)).andExpect(status().isForbidden());
 
-        mockMvc.perform(get("/internal/bookings/{id}", bookingId)
-                        .header(TestJwt.INTERNAL_TOKEN_HEADER, "wrong-token"))
+        mockMvc.perform(get("/internal/bookings/{id}", bookingId).header(TestJwt.INTERNAL_TOKEN_HEADER, "wrong-token"))
                 .andExpect(status().isForbidden());
 
         mockMvc.perform(get("/internal/bookings/{id}", bookingId)
@@ -295,11 +357,9 @@ class BookingControllerTest {
         pending.setCreatedAt(Instant.now().minus(Duration.ofMinutes(15)));
         bookingRepository.saveAndFlush(pending);
 
-        mockMvc.perform(post("/internal/bookings/recover"))
-                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/internal/bookings/recover")).andExpect(status().isForbidden());
 
-        mockMvc.perform(post("/internal/bookings/recover")
-                        .header(TestJwt.INTERNAL_TOKEN_HEADER, "wrong-token"))
+        mockMvc.perform(post("/internal/bookings/recover").header(TestJwt.INTERNAL_TOKEN_HEADER, "wrong-token"))
                 .andExpect(status().isForbidden());
 
         mockMvc.perform(post("/internal/bookings/recover")
@@ -354,24 +414,21 @@ class BookingControllerTest {
         MvcResult result = createBooking(token, 5L, roomId, START, END)
                 .andExpect(status().isCreated())
                 .andReturn();
-        return objectMapper.readTree(result.getResponse().getContentAsString()).get("id").asLong();
+        return objectMapper
+                .readTree(result.getResponse().getContentAsString())
+                .get("id")
+                .asLong();
     }
 
-    private ResultActions createBooking(
-            String token,
-            long hotelId,
-            Long roomId,
-            LocalDate startDate,
-            LocalDate endDate
-    ) throws Exception {
+    private ResultActions createBooking(String token, long hotelId, Long roomId, LocalDate startDate, LocalDate endDate)
+            throws Exception {
         return mockMvc.perform(post("/api/bookings")
                 .header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(token))
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(bookingJson(hotelId, roomId, startDate, endDate)));
     }
 
-    private String bookingJson(long hotelId, Long roomId, LocalDate startDate, LocalDate endDate)
-            throws Exception {
+    private String bookingJson(long hotelId, Long roomId, LocalDate startDate, LocalDate endDate) throws Exception {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("hotelId", hotelId);
         if (roomId != null) {

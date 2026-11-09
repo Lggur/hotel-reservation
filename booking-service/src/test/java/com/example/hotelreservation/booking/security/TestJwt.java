@@ -22,8 +22,7 @@ public final class TestJwt {
 
     private static final JwtEncoder ENCODER = createEncoder();
 
-    private TestJwt() {
-    }
+    private TestJwt() {}
 
     public static String user(long userId) {
         return token("user-" + userId, userId, "USER");

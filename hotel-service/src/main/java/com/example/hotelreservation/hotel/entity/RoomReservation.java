@@ -21,45 +21,41 @@ import lombok.Setter;
 
 @Entity
 @Table(
-  name = "room_reservations",
-  uniqueConstraints = @UniqueConstraint(
-    name = "uk_room_reservations_booking",
-    columnNames = "booking_id"
-  ),
-  indexes = @Index(
-    name = "idx_room_reservations_room_status_dates",
-    columnList = "room_id,status,start_date,end_date"
-  )
-)
+        name = "room_reservations",
+        uniqueConstraints = @UniqueConstraint(name = "uk_room_reservations_booking", columnNames = "booking_id"),
+        indexes =
+                @Index(
+                        name = "idx_room_reservations_room_status_dates",
+                        columnList = "room_id,status,start_date,end_date"))
 @Getter
 @Setter
 @NoArgsConstructor
 public class RoomReservation {
 
-  @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-  @ManyToOne(fetch = FetchType.LAZY, optional = false)
-  @JoinColumn(name = "room_id", nullable = false)
-  private Room room;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "room_id", nullable = false)
+    private Room room;
 
-  @Column(name = "booking_id", nullable = false)
-  private Long bookingId;
+    @Column(name = "booking_id", nullable = false)
+    private Long bookingId;
 
-  @Column(name = "request_id", length = 128)
-  private String requestId;
+    @Column(name = "request_id", length = 128)
+    private String requestId;
 
-  @Column(name = "start_date")
-  private LocalDate startDate;
+    @Column(name = "start_date")
+    private LocalDate startDate;
 
-  @Column(name = "end_date")
-  private LocalDate endDate;
+    @Column(name = "end_date")
+    private LocalDate endDate;
 
-  @Enumerated(EnumType.STRING)
-  @Column(nullable = false, length = 16)
-  private ReservationStatus status;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private ReservationStatus status;
 
-  @Column(name = "created_at", nullable = false)
-  private Instant createdAt;
+    @Column(name = "created_at", nullable = false)
+    private Instant createdAt;
 }

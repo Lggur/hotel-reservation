@@ -11,6 +11,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,13 +23,13 @@ public class BookingPersistenceService {
     private final BookingRepository bookingRepository;
 
     @Transactional
+    public Booking createPending(Long userId, Long hotelId, Long roomId, LocalDate startDate, LocalDate endDate) {
+        return createPending(userId, hotelId, roomId, startDate, endDate, null);
+    }
+
+    @Transactional
     public Booking createPending(
-            Long userId,
-            Long hotelId,
-            Long roomId,
-            LocalDate startDate,
-            LocalDate endDate
-    ) {
+            Long userId, Long hotelId, Long roomId, LocalDate startDate, LocalDate endDate, String idempotencyKey) {
         Instant now = Instant.now();
         Booking booking = new Booking();
         booking.setUserId(userId);
@@ -36,6 +38,7 @@ public class BookingPersistenceService {
         booking.setStartDate(startDate);
         booking.setEndDate(endDate);
         booking.setStatus(BookingStatus.PENDING);
+        booking.setIdempotencyKey(idempotencyKey);
         booking.setCreatedAt(now);
         booking.setUpdatedAt(now);
         return bookingRepository.save(booking);
@@ -93,17 +96,23 @@ public class BookingPersistenceService {
     }
 
     @Transactional(readOnly = true)
-    public List<Booking> listForUser(Long userId) {
-        return bookingRepository.findAllByUserIdOrderByIdDesc(userId);
+    public Optional<Booking> findByIdempotencyKey(Long userId, String idempotencyKey) {
+        return bookingRepository.findByUserIdAndIdempotencyKey(userId, idempotencyKey);
     }
 
     @Transactional(readOnly = true)
-    public List<Booking> listAll() {
-        return bookingRepository.findAllByOrderByIdDesc();
+    public Page<Booking> pageForUser(Long userId, Pageable pageable) {
+        return bookingRepository.findAllByUserId(userId, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Booking> pageAll(Pageable pageable) {
+        return bookingRepository.findAll(pageable);
     }
 
     private Booking requireBooking(Long bookingId) {
-        return bookingRepository.findById(bookingId)
+        return bookingRepository
+                .findById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking " + bookingId + " not found"));
     }
 }

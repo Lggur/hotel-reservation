@@ -60,7 +60,8 @@ class BookingFlowIntegrationTest {
         registry.add("security.jwt.secret", () -> TestJwt.SECRET);
         registry.add("booking.recovery.enabled", () -> false);
         registry.add("hotel-service.retry.backoff", () -> "10ms");
-        registry.add("spring.datasource.url",
+        registry.add(
+                "spring.datasource.url",
                 () -> "jdbc:h2:mem:booking-flow-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE");
     }
 
@@ -86,8 +87,8 @@ class BookingFlowIntegrationTest {
     @Test
     void createAndCancelBookingCallsHotelService() throws Exception {
         String token = TestJwt.user(1);
-        HOTEL_SERVICE.stubFor(post(urlEqualTo("/api/rooms/10/confirm-availability"))
-                .willReturn(ok()));
+        HOTEL_SERVICE.stubFor(
+                post(urlEqualTo("/api/rooms/10/confirm-availability")).willReturn(ok()));
 
         MvcResult created = mockMvc.perform(MockMvcRequestBuilders.post("/api/bookings")
                         .header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(token))
@@ -97,15 +98,16 @@ class BookingFlowIntegrationTest {
                 .andExpect(jsonPath("$.status").value("CONFIRMED"))
                 .andReturn();
 
-        long bookingId = objectMapper.readTree(created.getResponse().getContentAsString())
-                .get("id").asLong();
+        long bookingId = objectMapper
+                .readTree(created.getResponse().getContentAsString())
+                .get("id")
+                .asLong();
 
         HOTEL_SERVICE.verify(postRequestedFor(urlEqualTo("/api/rooms/10/confirm-availability"))
                 .withHeader("X-Internal-Token", equalTo(TestJwt.INTERNAL_TOKEN))
                 .withRequestBody(matchingJsonPath("$.bookingId", equalTo(String.valueOf(bookingId)))));
 
-        HOTEL_SERVICE.stubFor(post(urlEqualTo("/api/rooms/10/release"))
-                .willReturn(ok()));
+        HOTEL_SERVICE.stubFor(post(urlEqualTo("/api/rooms/10/release")).willReturn(ok()));
 
         mockMvc.perform(MockMvcRequestBuilders.post("/api/bookings/{id}/cancel", bookingId)
                         .header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(token)))
@@ -120,14 +122,17 @@ class BookingFlowIntegrationTest {
     @Test
     void autoSelectsRoomUsingUserToken() throws Exception {
         String token = TestJwt.user(1);
-        HOTEL_SERVICE.stubFor(get(urlPathEqualTo("/api/rooms/recommend"))
-                .withHeader("Authorization", equalTo("Bearer " + token))
-                .withQueryParam("hotelId", equalTo("7"))
-                .willReturn(okJson("""
+        HOTEL_SERVICE.stubFor(
+                get(urlPathEqualTo("/api/rooms/recommend"))
+                        .withHeader("Authorization", equalTo("Bearer " + token))
+                        .withQueryParam("hotelId", equalTo("7"))
+                        .willReturn(
+                                okJson(
+                                        """
                         [{"id":12,"hotelId":7,"number":"202","available":true,"timesBooked":0}]
                         """)));
-        HOTEL_SERVICE.stubFor(post(urlEqualTo("/api/rooms/12/confirm-availability"))
-                .willReturn(ok()));
+        HOTEL_SERVICE.stubFor(
+                post(urlEqualTo("/api/rooms/12/confirm-availability")).willReturn(ok()));
 
         mockMvc.perform(MockMvcRequestBuilders.post("/api/bookings")
                         .header(HttpHeaders.AUTHORIZATION, TestJwt.bearer(token))

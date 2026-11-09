@@ -50,17 +50,19 @@ class HotelServiceClientTest {
 
     @Test
     void recommendSendsAuthorizationAndMapsRooms() {
-        server.stubFor(get(urlPathEqualTo("/api/rooms/recommend"))
-                .withQueryParam("hotelId", equalTo("7"))
-                .withQueryParam("startDate", equalTo("2026-01-10"))
-                .withQueryParam("endDate", equalTo("2026-01-12"))
-                .withHeader("Authorization", equalTo("Bearer user-token"))
-                .willReturn(okJson("""
+        server.stubFor(
+                get(urlPathEqualTo("/api/rooms/recommend"))
+                        .withQueryParam("hotelId", equalTo("7"))
+                        .withQueryParam("startDate", equalTo("2026-01-10"))
+                        .withQueryParam("endDate", equalTo("2026-01-12"))
+                        .withHeader("Authorization", equalTo("Bearer user-token"))
+                        .willReturn(
+                                okJson(
+                                        """
                         [{"id":11,"hotelId":7,"number":"101","available":true,"timesBooked":2}]
                         """)));
 
-        List<HotelRoom> rooms = client(Duration.ofSeconds(2))
-                .recommend(7L, START, END, "Bearer user-token");
+        List<HotelRoom> rooms = client(Duration.ofSeconds(2)).recommend(7L, START, END, "Bearer user-token");
 
         assertEquals(1, rooms.size());
         assertEquals(11L, rooms.get(0).id());
@@ -69,8 +71,7 @@ class HotelServiceClientTest {
 
     @Test
     void confirmSendsInternalTokenAndSlotPayload() {
-        server.stubFor(post(urlEqualTo("/api/rooms/10/confirm-availability"))
-                .willReturn(ok()));
+        server.stubFor(post(urlEqualTo("/api/rooms/10/confirm-availability")).willReturn(ok()));
 
         client(Duration.ofSeconds(2)).confirmAvailability(10L, 100L, START, END);
 
@@ -86,8 +87,8 @@ class HotelServiceClientTest {
         server.stubFor(post(urlEqualTo("/api/rooms/10/confirm-availability"))
                 .willReturn(aResponse().withStatus(409)));
 
-        assertThrows(RoomUnavailableException.class,
-                () -> client(Duration.ofSeconds(2)).confirmAvailability(10L, 100L, START, END));
+        assertThrows(RoomUnavailableException.class, () -> client(Duration.ofSeconds(2))
+                .confirmAvailability(10L, 100L, START, END));
     }
 
     @Test
@@ -95,23 +96,21 @@ class HotelServiceClientTest {
         server.stubFor(post(urlEqualTo("/api/rooms/10/confirm-availability"))
                 .willReturn(aResponse().withStatus(500)));
 
-        assertThrows(HotelServiceUnavailableException.class,
-                () -> client(Duration.ofSeconds(2)).confirmAvailability(10L, 100L, START, END));
+        assertThrows(HotelServiceUnavailableException.class, () -> client(Duration.ofSeconds(2))
+                .confirmAvailability(10L, 100L, START, END));
     }
 
     @Test
     void confirmTimeoutMeansHotelServiceUnavailable() {
-        server.stubFor(post(urlEqualTo("/api/rooms/10/confirm-availability"))
-                .willReturn(ok().withFixedDelay(1500)));
+        server.stubFor(post(urlEqualTo("/api/rooms/10/confirm-availability")).willReturn(ok().withFixedDelay(1500)));
 
-        assertThrows(HotelServiceUnavailableException.class,
-                () -> client(Duration.ofMillis(300)).confirmAvailability(10L, 100L, START, END));
+        assertThrows(HotelServiceUnavailableException.class, () -> client(Duration.ofMillis(300))
+                .confirmAvailability(10L, 100L, START, END));
     }
 
     @Test
     void releaseSendsInternalTokenAndSlotPayload() {
-        server.stubFor(post(urlEqualTo("/api/rooms/10/release"))
-                .willReturn(ok()));
+        server.stubFor(post(urlEqualTo("/api/rooms/10/release")).willReturn(ok()));
 
         client(Duration.ofSeconds(2)).release(10L, 100L, START, END);
 
@@ -122,20 +121,23 @@ class HotelServiceClientTest {
 
     @Test
     void releaseServerErrorMeansHotelServiceUnavailable() {
-        server.stubFor(post(urlEqualTo("/api/rooms/10/release"))
-                .willReturn(aResponse().withStatus(500)));
+        server.stubFor(
+                post(urlEqualTo("/api/rooms/10/release")).willReturn(aResponse().withStatus(500)));
 
-        assertThrows(HotelServiceUnavailableException.class,
-                () -> client(Duration.ofSeconds(2)).release(10L, 100L, START, END));
+        assertThrows(HotelServiceUnavailableException.class, () -> client(Duration.ofSeconds(2))
+                .release(10L, 100L, START, END));
     }
 
     @Test
     void releaseMissingReservationIsTreatedAsSuccess() {
-        server.stubFor(post(urlEqualTo("/api/rooms/10/release"))
-                .willReturn(aResponse().withStatus(404)));
+        server.stubFor(
+                post(urlEqualTo("/api/rooms/10/release")).willReturn(aResponse().withStatus(404)));
 
         assertDoesNotThrow(() -> client(Duration.ofSeconds(2)).release(10L, 100L, START, END));
-        assertEquals(1, server.findAll(postRequestedFor(urlEqualTo("/api/rooms/10/release"))).size());
+        assertEquals(
+                1,
+                server.findAll(postRequestedFor(urlEqualTo("/api/rooms/10/release")))
+                        .size());
     }
 
     @Test
@@ -150,11 +152,12 @@ class HotelServiceClientTest {
                 .whenScenarioStateIs("success")
                 .willReturn(ok()));
 
-        client(Duration.ofSeconds(2), 3, Duration.ofMillis(10))
-                .confirmAvailability(10L, 100L, START, END);
+        client(Duration.ofSeconds(2), 3, Duration.ofMillis(10)).confirmAvailability(10L, 100L, START, END);
 
-        assertEquals(2, server.findAll(
-                postRequestedFor(urlEqualTo("/api/rooms/10/confirm-availability"))).size());
+        assertEquals(
+                2,
+                server.findAll(postRequestedFor(urlEqualTo("/api/rooms/10/confirm-availability")))
+                        .size());
     }
 
     @Test
@@ -164,19 +167,24 @@ class HotelServiceClientTest {
                 .whenScenarioStateIs(Scenario.STARTED)
                 .willSetStateTo("success")
                 .willReturn(aResponse().withStatus(500)));
-        server.stubFor(get(urlPathEqualTo("/api/rooms/recommend"))
-                .inScenario("recommend-retry")
-                .whenScenarioStateIs("success")
-                .willReturn(okJson("""
+        server.stubFor(
+                get(urlPathEqualTo("/api/rooms/recommend"))
+                        .inScenario("recommend-retry")
+                        .whenScenarioStateIs("success")
+                        .willReturn(
+                                okJson(
+                                        """
                         [{"id":11,"hotelId":7,"number":"101","available":true,"timesBooked":2}]
                         """)));
 
-        List<HotelRoom> rooms = client(Duration.ofSeconds(2), 3, Duration.ofMillis(10))
-                .recommend(7L, START, END, "Bearer user-token");
+        List<HotelRoom> rooms =
+                client(Duration.ofSeconds(2), 3, Duration.ofMillis(10)).recommend(7L, START, END, "Bearer user-token");
 
         assertEquals(1, rooms.size());
-        assertEquals(2, server.findAll(
-                getRequestedFor(urlPathEqualTo("/api/rooms/recommend"))).size());
+        assertEquals(
+                2,
+                server.findAll(getRequestedFor(urlPathEqualTo("/api/rooms/recommend")))
+                        .size());
     }
 
     @Test
@@ -193,8 +201,10 @@ class HotelServiceClientTest {
 
         client(Duration.ofSeconds(2), 3, Duration.ofMillis(10)).release(10L, 100L, START, END);
 
-        assertEquals(2, server.findAll(
-                postRequestedFor(urlEqualTo("/api/rooms/10/release"))).size());
+        assertEquals(
+                2,
+                server.findAll(postRequestedFor(urlEqualTo("/api/rooms/10/release")))
+                        .size());
     }
 
     @Test
@@ -202,11 +212,13 @@ class HotelServiceClientTest {
         server.stubFor(post(urlEqualTo("/api/rooms/10/confirm-availability"))
                 .willReturn(aResponse().withStatus(409)));
 
-        assertThrows(RoomUnavailableException.class,
-                () -> client(Duration.ofSeconds(2)).confirmAvailability(10L, 100L, START, END));
+        assertThrows(RoomUnavailableException.class, () -> client(Duration.ofSeconds(2))
+                .confirmAvailability(10L, 100L, START, END));
 
-        assertEquals(1, server.findAll(
-                postRequestedFor(urlEqualTo("/api/rooms/10/confirm-availability"))).size());
+        assertEquals(
+                1,
+                server.findAll(postRequestedFor(urlEqualTo("/api/rooms/10/confirm-availability")))
+                        .size());
     }
 
     private HotelServiceClient client(Duration readTimeout) {

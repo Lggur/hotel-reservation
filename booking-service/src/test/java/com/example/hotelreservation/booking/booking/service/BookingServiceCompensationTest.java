@@ -40,8 +40,9 @@ class BookingServiceCompensationTest {
         when(persistenceService.createPending(1L, 5L, 10L, START, END)).thenReturn(pending);
         when(persistenceService.markConfirmed(1L)).thenThrow(new IllegalStateException("Database failure"));
 
-        assertThrows(IllegalStateException.class, () -> bookingService.create(
-                user, "token", new CreateBookingRequest(5L, 10L, START, END)));
+        assertThrows(
+                IllegalStateException.class,
+                () -> bookingService.create(user, "token", new CreateBookingRequest(5L, 10L, START, END)));
 
         verify(hotelServiceClient).release(10L, 1L, START, END);
     }
@@ -51,10 +52,10 @@ class BookingServiceCompensationTest {
         Booking confirmed = booking(2L, BookingStatus.CONFIRMED);
         when(persistenceService.get(2L)).thenReturn(confirmed);
         doThrow(new HotelServiceUnavailableException("Hotel service is unavailable"))
-                .when(hotelServiceClient).release(10L, 2L, START, END);
+                .when(hotelServiceClient)
+                .release(10L, 2L, START, END);
 
-        assertThrows(HotelServiceUnavailableException.class,
-                () -> bookingService.cancel(user, 2L));
+        assertThrows(HotelServiceUnavailableException.class, () -> bookingService.cancel(user, 2L));
 
         verify(persistenceService, never()).markCancelled(anyLong(), any());
     }
@@ -63,8 +64,7 @@ class BookingServiceCompensationTest {
     void cancelsPendingBookingWithoutCallingHotel() {
         Booking pending = booking(3L, BookingStatus.PENDING);
         when(persistenceService.get(3L)).thenReturn(pending);
-        when(persistenceService.markCancelled(3L, null))
-                .thenReturn(booking(3L, BookingStatus.CANCELLED));
+        when(persistenceService.markCancelled(3L, null)).thenReturn(booking(3L, BookingStatus.CANCELLED));
 
         bookingService.cancel(user, 3L);
 

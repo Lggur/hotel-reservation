@@ -10,6 +10,7 @@ import com.example.hotelreservation.hotel.repository.HotelRepository;
 import com.example.hotelreservation.hotel.repository.RoomRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,12 +23,14 @@ public class HotelService {
     private final HotelMapper hotelMapper;
 
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public HotelResponse create(HotelRequest request) {
         Hotel hotel = hotelRepository.save(hotelMapper.toEntity(request));
         return hotelMapper.toResponse(hotel);
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public List<HotelResponse> findAll() {
         return hotelRepository.findAllByOrderByIdAsc().stream()
                 .map(hotelMapper::toResponse)
@@ -35,11 +38,13 @@ public class HotelService {
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     public HotelResponse findById(Long id) {
         return hotelMapper.toResponse(requireHotel(id));
     }
 
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public HotelResponse update(Long id, HotelRequest request) {
         Hotel hotel = requireHotel(id);
         hotelMapper.update(request, hotel);
@@ -47,6 +52,7 @@ public class HotelService {
     }
 
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public void delete(Long id) {
         Hotel hotel = requireHotel(id);
         if (roomRepository.existsByHotelId(id)) {
@@ -56,7 +62,8 @@ public class HotelService {
     }
 
     private Hotel requireHotel(Long id) {
-        return hotelRepository.findById(id)
+        return hotelRepository
+                .findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Hotel " + id + " not found"));
     }
 }

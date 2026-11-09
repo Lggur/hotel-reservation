@@ -28,11 +28,8 @@ public class InternalTokenFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected void doFilterInternal(
-            HttpServletRequest request,
-            HttpServletResponse response,
-            FilterChain filterChain
-    ) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
         if (expectedToken.equals(request.getHeader(HEADER))) {
             filterChain.doFilter(request, response);
             return;
@@ -40,7 +37,9 @@ public class InternalTokenFilter extends OncePerRequestFilter {
 
         response.setStatus(HttpStatus.FORBIDDEN.value());
         response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
-        response.getWriter().write("""
+        response.getWriter()
+                .write(
+                        """
                 {"title":"Forbidden","status":403,"detail":"Invalid internal token"}
                 """);
     }

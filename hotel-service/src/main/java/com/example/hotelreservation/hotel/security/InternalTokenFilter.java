@@ -12,43 +12,35 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 public class InternalTokenFilter extends OncePerRequestFilter {
 
-  public static final String HEADER = "X-Internal-Token";
+    public static final String HEADER = "X-Internal-Token";
 
-  private static final Pattern INTERNAL_PATH = Pattern.compile(
-    "^/api/rooms/\\d+/(confirm-availability|release)$"
-  );
+    private static final Pattern INTERNAL_PATH = Pattern.compile("^/api/rooms/\\d+/(confirm-availability|release)$");
 
-  private final String expectedToken;
+    private final String expectedToken;
 
-  public InternalTokenFilter(String expectedToken) {
-    this.expectedToken = expectedToken;
-  }
-
-  @Override
-  protected boolean shouldNotFilter(HttpServletRequest request) {
-    return !INTERNAL_PATH.matcher(request.getRequestURI()).matches();
-  }
-
-  @Override
-  protected void doFilterInternal(
-    HttpServletRequest request,
-    HttpServletResponse response,
-    FilterChain filterChain
-  ) throws ServletException, IOException {
-    String providedToken = request.getHeader(HEADER);
-    if (expectedToken.equals(providedToken)) {
-      filterChain.doFilter(request, response);
-      return;
+    public InternalTokenFilter(String expectedToken) {
+        this.expectedToken = expectedToken;
     }
 
-    response.setStatus(HttpStatus.FORBIDDEN.value());
-    response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
-    response
-      .getWriter()
-      .write(
-        """
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        return !INTERNAL_PATH.matcher(request.getRequestURI()).matches();
+    }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
+            throws ServletException, IOException {
+        String providedToken = request.getHeader(HEADER);
+        if (expectedToken.equals(providedToken)) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        response.setStatus(HttpStatus.FORBIDDEN.value());
+        response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);
+        response.getWriter()
+                .write("""
         {"title":"Forbidden","status":403,"detail":"Invalid internal token"}
-        """
-      );
-  }
+        """);
+    }
 }

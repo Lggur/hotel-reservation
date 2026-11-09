@@ -42,10 +42,24 @@ booking:
     interval-ms: ${BOOKING_RECOVERY_INTERVAL_MS:60000}
     pending-timeout: ${BOOKING_RECOVERY_PENDING_TIMEOUT:PT10M}
 
+resilience4j:
+  circuitbreaker:
+    instances:
+      hotelService:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        ignore-exceptions:
+          - com.example.hotelreservation.booking.exception.RoomUnavailableException
+
 app:
   admin:
     username: ${ADMIN_USERNAME:admin}
     password: ${ADMIN_PASSWORD:admin123}
+  demo-data:
+    enabled: ${DEMO_DATA_ENABLED:true}
 
 eureka:
   client:

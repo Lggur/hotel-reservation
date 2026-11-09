@@ -23,12 +23,13 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
-@SpringBootTest(properties = {
-        "eureka.client.enabled=false",
-        "booking.recovery.enabled=false",
-        "security.jwt.secret=" + TestJwt.SECRET,
-        "spring.datasource.url=jdbc:h2:mem:booking-recovery-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
-})
+@SpringBootTest(
+        properties = {
+            "eureka.client.enabled=false",
+            "booking.recovery.enabled=false",
+            "security.jwt.secret=" + TestJwt.SECRET,
+            "spring.datasource.url=jdbc:h2:mem:booking-recovery-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
+        })
 @Transactional
 class StaleBookingRecoveryIntegrationTest {
 
@@ -84,7 +85,8 @@ class StaleBookingRecoveryIntegrationTest {
     void leavesPendingBookingWhenReleaseFails() {
         Booking stale = stalePending(10L);
         doThrow(new HotelServiceUnavailableException("Hotel service is unavailable"))
-                .when(hotelServiceClient).release(anyLong(), anyLong(), any(), any());
+                .when(hotelServiceClient)
+                .release(anyLong(), anyLong(), any(), any());
 
         assertEquals(0, recoveryService.recoverStaleBookings());
 

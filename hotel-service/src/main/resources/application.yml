@@ -27,6 +27,10 @@ security:
   internal:
     token: ${INTERNAL_TOKEN:hotel-reservation-internal-token}
 
+app:
+  demo-data:
+    enabled: ${DEMO_DATA_ENABLED:true}
+
 eureka:
   client:
     service-url:

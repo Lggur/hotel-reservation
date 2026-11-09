@@ -25,40 +25,37 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Hotels", description = "Hotel management")
 public class HotelController {
 
-  private final HotelService hotelService;
+    private final HotelService hotelService;
 
-  @PostMapping
-  @ResponseStatus(HttpStatus.CREATED)
-  @Operation(summary = "Create a hotel")
-  public HotelResponse create(@Valid @RequestBody HotelRequest request) {
-    return hotelService.create(request);
-  }
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Create a hotel")
+    public HotelResponse create(@Valid @RequestBody HotelRequest request) {
+        return hotelService.create(request);
+    }
 
-  @GetMapping
-  @Operation(summary = "List all hotels")
-  public List<HotelResponse> findAll() {
-    return hotelService.findAll();
-  }
+    @GetMapping
+    @Operation(summary = "List all hotels")
+    public List<HotelResponse> findAll() {
+        return hotelService.findAll();
+    }
 
-  @GetMapping("/{id}")
-  @Operation(summary = "Get a hotel by id")
-  public HotelResponse findById(@PathVariable Long id) {
-    return hotelService.findById(id);
-  }
+    @GetMapping("/{id}")
+    @Operation(summary = "Get a hotel by id")
+    public HotelResponse findById(@PathVariable Long id) {
+        return hotelService.findById(id);
+    }
 
-  @PutMapping("/{id}")
-  @Operation(summary = "Update a hotel")
-  public HotelResponse update(
-    @PathVariable Long id,
-    @Valid @RequestBody HotelRequest request
-  ) {
-    return hotelService.update(id, request);
-  }
+    @PutMapping("/{id}")
+    @Operation(summary = "Update a hotel")
+    public HotelResponse update(@PathVariable Long id, @Valid @RequestBody HotelRequest request) {
+        return hotelService.update(id, request);
+    }
 
-  @DeleteMapping("/{id}")
-  @ResponseStatus(HttpStatus.NO_CONTENT)
-  @Operation(summary = "Delete a hotel")
-  public void delete(@PathVariable Long id) {
-    hotelService.delete(id);
-  }
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Delete a hotel")
+    public void delete(@PathVariable Long id) {
+        hotelService.delete(id);
+    }
 }
